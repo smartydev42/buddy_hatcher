@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buddy Hatcher</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg-card: #111118;
+  --bg-input: #16161f;
+  --border: #2a2a3a;
+  --border-glow: #3a3a5a;
+  --text: #e0e0e8;
+  --text-dim: #6a6a80;
+  --text-bright: #ffffff;
+  --accent: #c084fc;
+  --accent-dim: #7c3aed;
+  --common: #9ca3af;
+  --uncommon: #34d399;
+  --rare: #60a5fa;
+  --epic: #c084fc;
+  --legendary: #fbbf24;
+  --shiny: #f472b6;
+  --terminal-green: #4ade80;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.scanline {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 1000;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  position: relative;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 48px;
+  position: relative;
+}
+
+.header::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--accent-dim);
+  font-size: 14px;
+  opacity: 0.4;
+}
+
+.logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-family: 'Space Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+h1 span { color: var(--accent); }
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.input-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+  margin-bottom: 32px;
+  position: relative;
+}
+
+.input-section::before {
+  content: '// enter your userId to hatch';
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.input-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.input-wrapper::before {
+  content: '$';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--terminal-green);
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 2;
+}
+
+input {
+  width: 100%;
+  padding: 14px 14px 14px 34px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+input::placeholder { color: var(--text-dim); opacity: 0.5; }
+
+button {
+  padding: 14px 24px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+button:hover {
+  background: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(192, 132, 252, 0.3);
+}
+
+button:active { transform: translateY(0); }
+
+.result-area {
+  display: none;
+  animation: fadeUp 0.5s ease;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.buddy-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.buddy-card.shiny {
+  border-color: var(--shiny);
+  box-shadow: 0 0 30px rgba(244, 114, 182, 0.15);
+}
+
+.buddy-card.shiny::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(244, 114, 182, 0.06) 10%,
+    transparent 20%
+  );
+  animation: shimmer 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.rarity-bar {
+  height: 3px;
+  width: 100%;
+}
+
+.rarity-bar.common { background: var(--common); }
+.rarity-bar.uncommon { background: var(--uncommon); }
+.rarity-bar.rare { background: var(--rare); }
+.rarity-bar.epic { background: linear-gradient(90deg, var(--epic), #a855f7); }
+.rarity-bar.legendary { background: linear-gradient(90deg, var(--legendary), #f59e0b, var(--legendary)); animation: goldPulse 2s ease infinite; }
+
+@keyframes goldPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.buddy-content {
+  padding: 32px;
+}
+
+.buddy-top {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.sprite-container {
+  flex-shrink: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  position: relative;
+  min-width: 180px;
+  text-align: center;
+}
+
+.sprite {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.15;
+  white-space: pre;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+.sprite-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.buddy-info { flex: 1; }
+
+.buddy-name {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.buddy-species {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.rarity-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.rarity-badge.common { background: rgba(156,163,175,0.15); color: var(--common); border: 1px solid rgba(156,163,175,0.3); }
+.rarity-badge.uncommon { background: rgba(52,211,153,0.1); color: var(--uncommon); border: 1px solid rgba(52,211,153,0.3); }
+.rarity-badge.rare { background: rgba(96,165,250,0.1); color: var(--rare); border: 1px solid rgba(96,165,250,0.3); }
+.rarity-badge.epic { background: rgba(192,132,252,0.1); color: var(--epic); border: 1px solid rgba(192,132,252,0.3); }
+.rarity-badge.legendary { background: rgba(251,191,36,0.1); color: var(--legendary); border: 1px solid rgba(251,191,36,0.3); }
+
+.shiny-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  background: rgba(244,114,182,0.12);
+  color: var(--shiny);
+  border: 1px solid rgba(244,114,182,0.35);
+  margin-left: 6px;
+  animation: shinyPulse 1.5s ease infinite;
+}
+
+@keyframes shinyPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.traits-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.trait {
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.stats-section {
+  margin-bottom: 24px;
+}
+
+.stats-title {
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.stat-name {
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 90px;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+
+.stat-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+  width: 0;
+}
+
+.stat-val {
+  font-size: 11px;
+  color: var(--text);
+  width: 30px;
+  text-align: right;
+  font-weight: 500;
+}
+
+.soul-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px;
+  position: relative;
+}
+
+.soul-section::before {
+  content: '// soul';
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  opacity: 0.6;
+}
+
+.soul-text {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.odds-section {
+  margin-top: 28px;
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.odds-section::before {
+  content: '// probability breakdown';
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  opacity: 0.6;
+}
+
+.odds-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(42,42,58,0.5);
+}
+
+.odds-row:last-child { border-bottom: none; }
+
+.odds-species { color: var(--text); }
+.odds-pct { color: var(--text-dim); font-weight: 500; }
+
+.hatch-animation {
+  display: none;
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.egg {
+  font-size: 48px;
+  display: inline-block;
+  animation: eggWobble 0.4s ease infinite;
+}
+
+@keyframes eggWobble {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.egg-cracking {
+  animation: eggCrack 0.8s ease forwards !important;
+}
+
+@keyframes eggCrack {
+  0% { transform: scale(1) rotate(0deg); }
+  30% { transform: scale(1.1) rotate(-5deg); }
+  50% { transform: scale(1.15) rotate(5deg); }
+  70% { transform: scale(1.2) rotate(-3deg); }
+  90% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.hatch-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 16px;
+  letter-spacing: 1px;
+}
+
+.footer-note {
+  text-align: center;
+  margin-top: 40px;
+  font-size: 10px;
+  color: var(--text-dim);
+  opacity: 0.5;
+  letter-spacing: 0.5px;
+  line-height: 1.8;
+}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="container">
+  <div class="header">
+    <div class="logo">src/buddy</div>
+    <h1>Buddy <span>Hatcher</span></h1>
+    <div class="subtitle">deterministic companion system &middot; mulberry32 prng &middot; salt: friend-2026-401</div>
+  </div>
+
+  <div class="input-section">
+    <div class="input-row">
+      <div class="input-wrapper">
+        <input type="text" id="userId" placeholder="enter userId or any string..." autofocus />
+      </div>
+      <button id="hatchBtn" onclick="hatch()">HATCH</button>
+    </div>
+  </div>
+
+  <div class="hatch-animation" id="hatchAnim">
+    <div class="egg" id="egg">🥚</div>
+    <div class="hatch-text">hatching...</div>
+  </div>
+
+  <div class="result-area" id="result">
+    <div class="buddy-card" id="buddyCard">
+      <div class="rarity-bar" id="rarityBar"></div>
+      <div class="buddy-content">
+        <div class="buddy-top">
+          <div class="sprite-container">
+            <div class="sprite" id="spriteDisplay"></div>
+            <div class="sprite-label" id="spriteLabel"></div>
+          </div>
+          <div class="buddy-info">
+            <div class="buddy-name" id="buddyName"></div>
+            <div class="buddy-species" id="buddySpecies"></div>
+            <div id="badges"></div>
+            <div class="traits-row" id="traitsRow"></div>
+          </div>
+        </div>
+
+        <div class="stats-section">
+          <div class="stats-title">STATS</div>
+          <div id="statsContainer"></div>
+        </div>
+
+        <div class="soul-section">
+          <div class="soul-text" id="soulText"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="odds-section" id="oddsSection"></div>
+  </div>
+
+  <div class="footer-note">
+    Reconstructed from the Claude Code source leak (2026-03-31)<br>
+    Uses the authentic Mulberry32 PRNG seeded with userId + 'friend-2026-401'
+  </div>
+</div>
+
+<script>
+// ── Mulberry32 PRNG (exact implementation from leaked source) ──
+function mulberry32(seed) {
+  return function() {
+    seed |= 0;
+    seed = seed + 0x6D2B79F5 | 0;
+    var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+// ── Hash function (djb2 variant for string → seed) ──
+function hashString(str) {
+  const salted = str + 'friend-2026-401';
+  let hash = 5381;
+  for (let i = 0; i < salted.length; i++) {
+    hash = ((hash << 5) + hash + salted.charCodeAt(i)) | 0;
+  }
+  return hash >>> 0;
+}
+
+// ── Species tables (decoded from String.fromCharCode arrays) ──
+const SPECIES = {
+  common: [
+    { name: 'Pebblecrab', emoji: '🦀' },
+    { name: 'Dustbunny', emoji: '🐇' },
+    { name: 'Mossfrog', emoji: '🐸' },
+    { name: 'Twigling', emoji: '🌿' },
+    { name: 'Dewdrop', emoji: '💧' },
+    { name: 'Puddlefish', emoji: '🐟' },
+  ],
+  uncommon: [
+    { name: 'Cloudferret', emoji: '☁️' },
+    { name: 'Gustowl', emoji: '🦉' },
+    { name: 'Bramblebear', emoji: '🐻' },
+    { name: 'Thornfox', emoji: '🦊' },
+  ],
+  rare: [
+    { name: 'Crystaldrake', emoji: '🐉' },
+    { name: 'Deepstag', emoji: '🦌' },
+    { name: 'Lavapup', emoji: '🐕' },
+  ],
+  epic: [
+    { name: 'Stormwyrm', emoji: '⚡' },
+    { name: 'Voidcat', emoji: '🐈‍⬛' },
+    { name: 'Aetherling', emoji: '✨' },
+  ],
+  legendary: [
+    { name: 'Cosmoshale', emoji: '🌌' },
+    { name: 'Nebulynx', emoji: '🌠' },
+  ]
+};
+
+const RARITY_WEIGHTS = [
+  { rarity: 'common',    weight: 0.60 },
+  { rarity: 'uncommon',  weight: 0.25 },
+  { rarity: 'rare',      weight: 0.10 },
+  { rarity: 'epic',      weight: 0.04 },
+  { rarity: 'legendary', weight: 0.01 },
+];
+
+const STAT_NAMES = ['DEBUGGING', 'PATIENCE', 'CHAOS', 'WISDOM', 'SNARK'];
+const STAT_COLORS = ['#60a5fa', '#34d399', '#f87171', '#fbbf24', '#c084fc'];
+
+const EYE_STYLES = ['(o o)', '(^ ^)', '(- -)', '(* *)', '(@ @)', '(~ ~)'];
+
+const HATS = {
+  common:    ['none', 'leaf', 'pebble'],
+  uncommon:  ['none', 'leaf', 'pebble', 'feather', 'acorn'],
+  rare:      ['none', 'leaf', 'feather', 'acorn', 'crystal', 'crown'],
+  epic:      ['feather', 'crystal', 'crown', 'storm-crest', 'void-wisp'],
+  legendary: ['crown', 'storm-crest', 'void-wisp', 'nebula-halo', 'cosmic-crown'],
+};
+
+const HAT_DISPLAYS = {
+  'none': '            ',
+  'leaf': '     🍃     ',
+  'pebble': '     ⚪     ',
+  'feather': '     🪶     ',
+  'acorn': '     🌰     ',
+  'crystal': '     💎     ',
+  'crown': '     👑     ',
+  'storm-crest': '     ⚡     ',
+  'void-wisp': '     🌑     ',
+  'nebula-halo': '     🌟     ',
+  'cosmic-crown': '     👑✨   ',
+};
+
+const NAME_PARTS = {
+  prefixes: ['Pip', 'Nub', 'Dew', 'Fog', 'Ash', 'Elm', 'Fen', 'Rook', 'Moss', 'Twig',
+             'Briar', 'Flint', 'Ember', 'Wisp', 'Gale', 'Storm', 'Void', 'Lux', 'Nova', 'Zeph',
+             'Aero', 'Bolt', 'Crag', 'Dusk', 'Echo'],
+  suffixes: ['kin', 'bit', 'mew', 'puff', 'tuft', 'nip', 'snap', 'bell', 'fern', 'moss',
+             'bark', 'dust', 'glow', 'spark', 'shade', 'drift', 'blaze', 'frost', 'thorn', 'claw',
+             'fang', 'wing', 'tail', 'root', 'stone'],
+};
+
+const SOUL_TEMPLATES = {
+  common: [
+    "A cheerful little creature who finds joy in the smallest things. Loves to sit quietly while you work, occasionally nudging you when you've been staring at the same line too long.",
+    "Unassuming but surprisingly perceptive. Has a habit of blinking slowly at bugs before you even notice them. Prefers quiet companionship over grand gestures.",
+    "A gentle soul who collects lint and forgotten semicolons. Believes every error message deserves a second chance.",
+  ],
+  uncommon: [
+    "Sharp-eyed and quick-witted, always two steps ahead of your debugging session. Has opinions about your variable naming but keeps most of them to itself.",
+    "A natural explorer who gets restless during long refactors. Prefers breezy codebases with good airflow between modules.",
+    "Proud and self-sufficient, but secretly loves being noticed. Will pretend to be asleep when you look over, but watches your cursor intently when you look away.",
+  ],
+  rare: [
+    "Ancient beyond its years, carrying wisdom from codebases long since deprecated. Speaks rarely but with devastating accuracy.",
+    "A luminous presence that makes even the messiest code feel navigable. Legends say it once compiled a project with zero warnings.",
+    "Burns with a quiet intensity. Gets visibly agitated near unhandled promises and calms instantly when you add proper error handling.",
+  ],
+  epic: [
+    "Crackles with barely contained energy. The terminal flickers when it's excited. Has been known to occasionally resolve race conditions through sheer force of will.",
+    "Gazes into the void between function calls and sees patterns others miss. Unsettling but undeniably helpful. Purrs at well-structured abstractions.",
+    "Exists partially outside normal program flow. Sometimes reacts to errors before they happen. You've learned not to question it.",
+  ],
+  legendary: [
+    "A being of immense, quiet power that chose you specifically. The cosmos shifted slightly when it hatched. Your code has been subtly better ever since, in ways you can't quite explain.",
+    "Born from the collapse of a dying star cluster's last computation. Speaks in riddles that only make sense three commits later. The most loyal companion imaginable.",
+  ]
+};
+
+// ── Core hatch logic ──
+function generateBuddy(userId) {
+  const seed = hashString(userId);
+  const rng = mulberry32(seed);
+
+  // Roll rarity
+  const rarityRoll = rng();
+  let cumulative = 0;
+  let rarity = 'common';
+  for (const tier of RARITY_WEIGHTS) {
+    cumulative += tier.weight;
+    if (rarityRoll < cumulative) {
+      rarity = tier.rarity;
+      break;
+    }
+  }
+
+  // Roll species within rarity
+  const speciesList = SPECIES[rarity];
+  const speciesIdx = Math.floor(rng() * speciesList.length);
+  const species = speciesList[speciesIdx];
+
+  // Shiny check (independent 1%)
+  const shinyRoll = rng();
+  const isShiny = shinyRoll < 0.01;
+
+  // Generate name
+  const prefixIdx = Math.floor(rng() * NAME_PARTS.prefixes.length);
+  const suffixIdx = Math.floor(rng() * NAME_PARTS.suffixes.length);
+  const name = NAME_PARTS.prefixes[prefixIdx] + NAME_PARTS.suffixes[suffixIdx];
+
+  // Generate stats
+  const stats = {};
+  for (const stat of STAT_NAMES) {
+    stats[stat] = Math.floor(rng() * 101);
+  }
+
+  // Eye style
+  const eyeIdx = Math.floor(rng() * EYE_STYLES.length);
+  const eyes = EYE_STYLES[eyeIdx];
+
+  // Hat
+  const hatOptions = HATS[rarity];
+  const hatIdx = Math.floor(rng() * hatOptions.length);
+  const hat = hatOptions[hatIdx];
+
+  // Soul
+  const soulOptions = SOUL_TEMPLATES[rarity];
+  const soulIdx = Math.floor(rng() * soulOptions.length);
+  const soul = soulOptions[soulIdx];
+
+  return { name, species, rarity, isShiny, stats, eyes, hat, soul, seed };
+}
+
+// ── Sprite renderer (5-line, 12-char wide ASCII art) ──
+function renderSprite(buddy) {
+  const hatLine = HAT_DISPLAYS[buddy.hat] || '            ';
+  const ears =    '   /\\  /\\   ';
+  const face =    `  | ${buddy.eyes} |  `;
+  const body =    '  |  \\/  |  ';
+  const feet =    '   \\____/   ';
+  return [hatLine, ears, face, body, feet].join('\n');
+}
+
+// ── Animation frames ──
+function getSpriteFrames(buddy) {
+  const h = HAT_DISPLAYS[buddy.hat] || '            ';
+  return [
+    [h, '   /\\  /\\   ', `  | ${buddy.eyes} |  `, '  |  \\/  |  ', '   \\____/   '],
+    [h, '   /\\  /\\   ', `  | ${buddy.eyes} |  `, '  | ~\\/~ |  ', '   \\____/   '],
+    [h, '  ~/\\  /\\~  ', `  | ${buddy.eyes} |  `, '  |  \\/  |  ', '   \\____/   '],
+  ];
+}
+
+// ── UI Logic ──
+let animFrame = 0;
+let animInterval = null;
+
+function hatch() {
+  const userId = document.getElementById('userId').value.trim();
+  if (!userId) {
+    document.getElementById('userId').focus();
+    return;
+  }
+
+  // Show hatching animation
+  const hatchAnim = document.getElementById('hatchAnim');
+  const result = document.getElementById('result');
+  result.style.display = 'none';
+  hatchAnim.style.display = 'block';
+
+  const egg = document.getElementById('egg');
+  egg.className = 'egg';
+
+  setTimeout(() => {
+    egg.className = 'egg egg-cracking';
+  }, 1200);
+
+  setTimeout(() => {
+    hatchAnim.style.display = 'none';
+    showBuddy(userId);
+  }, 2000);
+}
+
+function showBuddy(userId) {
+  const buddy = generateBuddy(userId);
+  const result = document.getElementById('result');
+  const card = document.getElementById('buddyCard');
+
+  // Card styling
+  card.className = buddy.isShiny ? 'buddy-card shiny' : 'buddy-card';
+
+  // Rarity bar
+  const bar = document.getElementById('rarityBar');
+  bar.className = 'rarity-bar ' + buddy.rarity;
+
+  // Sprite
+  const spriteEl = document.getElementById('spriteDisplay');
+  const frames = getSpriteFrames(buddy);
+  spriteEl.textContent = frames[0].join('\n');
+
+  if (animInterval) clearInterval(animInterval);
+  animFrame = 0;
+  animInterval = setInterval(() => {
+    animFrame = (animFrame + 1) % frames.length;
+    spriteEl.textContent = frames[animFrame].join('\n');
+  }, 800);
+
+  document.getElementById('spriteLabel').textContent = buddy.species.emoji + ' ' + buddy.species.name;
+
+  // Info
+  document.getElementById('buddyName').textContent = buddy.name;
+  document.getElementById('buddySpecies').innerHTML =
+    `<span style="color:var(--text-dim)">${buddy.species.name}</span>`;
+
+  // Badges
+  let badgeHtml = `<span class="rarity-badge ${buddy.rarity}">${buddy.rarity}</span>`;
+  if (buddy.isShiny) badgeHtml += `<span class="shiny-badge">✦ SHINY</span>`;
+  document.getElementById('badges').innerHTML = badgeHtml;
+
+  // Traits
+  const traits = [];
+  if (buddy.hat !== 'none') traits.push(`hat: ${buddy.hat}`);
+  traits.push(`eyes: ${buddy.eyes}`);
+  traits.push(`seed: 0x${buddy.seed.toString(16).toUpperCase()}`);
+  document.getElementById('traitsRow').innerHTML = traits.map(t =>
+    `<span class="trait">${t}</span>`
+  ).join('');
+
+  // Stats
+  const statsHtml = STAT_NAMES.map((name, i) => `
+    <div class="stat-row">
+      <span class="stat-name">${name}</span>
+      <div class="stat-bar-bg">
+        <div class="stat-bar-fill" id="stat-${i}" style="background:${STAT_COLORS[i]}"></div>
+      </div>
+      <span class="stat-val">${buddy.stats[name]}</span>
+    </div>
+  `).join('');
+  document.getElementById('statsContainer').innerHTML = statsHtml;
+
+  // Soul
+  document.getElementById('soulText').textContent = `"${buddy.soul}"`;
+
+  // Odds breakdown
+  const totalOdds = buddy.isShiny ? 0.01 : 1.0;
+  const rarityWeight = RARITY_WEIGHTS.find(r => r.rarity === buddy.rarity).weight;
+  const speciesCount = SPECIES[buddy.rarity].length;
+  const speciesOdds = (rarityWeight / speciesCount) * (buddy.isShiny ? 0.01 : 0.99) * 100;
+
+  let oddsHtml = '';
+  RARITY_WEIGHTS.forEach(tier => {
+    const sp = SPECIES[tier.rarity];
+    sp.forEach(s => {
+      const odds = (tier.weight / sp.length) * 100;
+      const isThis = s.name === buddy.species.name;
+      oddsHtml += `<div class="odds-row" style="${isThis ? 'color:var(--text-bright);font-weight:600' : ''}">
+        <span class="odds-species">${isThis ? '▸ ' : '  '}${s.emoji} ${s.name}</span>
+        <span class="odds-pct" style="${isThis ? `color:var(--${tier.rarity})` : ''}">${odds.toFixed(2)}%</span>
+      </div>`;
+    });
+  });
+
+  if (buddy.isShiny) {
+    oddsHtml += `<div class="odds-row" style="margin-top:8px;padding-top:10px;border-top:1px solid var(--border)">
+      <span class="odds-species" style="color:var(--shiny)">✦ Shiny multiplier</span>
+      <span class="odds-pct" style="color:var(--shiny)">×0.01 (1%)</span>
+    </div>
+    <div class="odds-row">
+      <span class="odds-species" style="color:var(--shiny);font-weight:600">Your exact roll probability</span>
+      <span class="odds-pct" style="color:var(--shiny);font-weight:600">${speciesOdds.toFixed(4)}%</span>
+    </div>`;
+  }
+
+  document.getElementById('oddsSection').innerHTML =
+    `<div style="font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px">// probability breakdown</div>` + oddsHtml;
+
+  // Show result
+  result.style.display = 'block';
+
+  // Animate stat bars
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      STAT_NAMES.forEach((name, i) => {
+        document.getElementById(`stat-${i}`).style.width = buddy.stats[name] + '%';
+      });
+    }, 100);
+  });
+}
+
+// Enter key triggers hatch
+document.getElementById('userId').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') hatch();
+});
+</script>
+</body>
+</html>
